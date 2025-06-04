@@ -66,6 +66,16 @@ export default function RegisterPage() {
       >
         登録
       </button>
+
+      <p className="mt-4">
+        アカウントのある方は
+        <button
+          onClick={() => navigate("/login")}
+          className="text-blue-500 underline cursor-pointer"
+        >
+          ログイン
+        </button>
+      </p>
     </main>
   );
 }
