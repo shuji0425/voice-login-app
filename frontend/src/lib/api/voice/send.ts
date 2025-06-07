@@ -7,7 +7,7 @@
 export async function sendVoiceBlob(endpoint: string, blob: Blob) {
   const token = localStorage.getItem("accessToken");
   const formData = new FormData();
-  formData.append("audio", blob, "voice.wav");
+  formData.append("file", blob, "voice.wav");
 
   const res = await fetch(endpoint, {
     method: "POST",
