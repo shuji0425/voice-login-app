@@ -1,34 +1,75 @@
-import os
-from resemblyzer import VoiceEncoder, preprocess_wav
-from tempfile import NamedTemporaryFile
 from fastapi import UploadFile
+from scipy.spatial.distance import cosine
 from sqlalchemy.orm import Session
-from app.repositories.voice_repository import create_embedding
+from app.repositories.voice_repository import VoiceEmbeddingRepository
 from app.repositories.user_repository import UserRepository
+from app.utils.voice import VoiceUtils
+from app.services.exceptions import UserNotFoundError
+from app.core.jwt import create_access_token
+from datetime import timedelta
 
-encoder = VoiceEncoder()
+
+class VoiceEmbeddingService:
+    # 音声ログイン
+    @staticmethod
+    def login_with_voice(file: UploadFile, db: Session):
+        tmp_path = ""
+        try:
+            # 一時ファイルを作成
+            tmp_path = VoiceUtils.save_temp_wav(file)
+            # 音声前処理と埋め込み生成
+            embedding = VoiceUtils.extract_embedding_from_path(tmp_path)
+
+            # 全音声情報を取得
+            db_embeddings = VoiceEmbeddingRepository.get_all_embeddings(db)
+
+            # 最も近いユーザーを探す
+            matched_user_id = None
+            best_similarity = -1
+
+            for item in db_embeddings:
+                stored = item.embedding
+                similarity = 1 - cosine(embedding, stored)
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    matched_user_id = item.user_id # ユーザーDBのid
+
+            # 閾値でログイン判定（類似度0.75）
+            if best_similarity >= 0.75:
+                user = UserRepository.get_by_id(matched_user_id)
+                if not user:
+                    raise UserNotFoundError()
+                token = create_access_token(
+                    data={"sub": user.user_id},
+                    expires_delta=timedelta(minutes=30)
+                )
+
+                return token
+            else:
+                raise ValueError("声の一致が見つかりませんでした")
+
+        finally:
+            # 一時ファイルを削除
+            VoiceUtils.delete_temp_file_from_path(tmp_path)
 
 
-# 音声登録処理
-def register_voice(file: UploadFile, user_id: str, db: Session):
-    tmp_path = ""
-    try:
-        # 一時ファイルを作成
-        with NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            tmp.write(file.file.read())
-            tmp_path = tmp.name
+    # 音声登録処理
+    @staticmethod
+    def register_voice(file: UploadFile, user_id: str, db: Session):
+        tmp_path = ""
+        try:
+            # 一時ファイルを作成
+            tmp_path = VoiceUtils.save_temp_wav(file)
 
-        # 音声前処理と埋め込み生成
-        wav = preprocess_wav(tmp_path)
-        embedding = encoder.embed_utterance(wav)
+            # 音声前処理と埋め込み生成
+            embedding = VoiceUtils.extract_embedding_from_path(tmp_path)
 
-        # user_idをキーにユーザーを取得
-        db_user = UserRepository.get_by_user_id(user_id, db)
-        int_user_id = db_user.id
+            # user_idをキーにユーザーを取得
+            db_user = UserRepository.get_by_user_id(user_id, db)
+            int_user_id = db_user.id
 
-        # DBに登録
-        create_embedding(db, int_user_id, embedding.tolist())
-    finally:
-        # 一時ファイルを削除
-        if tmp_path and os.path.exists(tmp_path):
-            os.remove(tmp_path)
+            # DBに登録
+            VoiceEmbeddingRepository.create_embedding(db, int_user_id, embedding)
+        finally:
+            # 一時ファイルを削除
+            VoiceUtils.delete_temp_file_from_path(tmp_path)

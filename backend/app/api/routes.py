@@ -26,6 +26,7 @@ def protected_route(user_id: str = Depends(get_current_user_id)):
     return {"message": f"ようこそ、{user_id} さん！"}
 
 
+# 音声登録
 @router.post("/api/voice-register")
 def voice_register(
     file: UploadFile = File(...),
@@ -33,3 +34,12 @@ def voice_register(
     user_id: str = Depends(get_current_user_id),
 ):
     return voice_handler.handle_voice_register(file, user_id, db)
+
+
+# 音声ログイン
+@router.post("/api/voice-login")
+def voice_login(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    return voice_handler.handle_voice_login(file, db)

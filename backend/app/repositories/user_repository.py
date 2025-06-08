@@ -9,6 +9,11 @@ class UserRepository:
     def get_by_user_id(user_id: str, db: Session) -> User | None:
         return db.query(User).filter(User.user_id == user_id).first()
 
+    # ユーザー取得（id)
+    @staticmethod
+    def get_by_id(id: int, db: Session) -> User | None:
+        return db.query(User).filter(User.id == id).first()
+
     # ユーザーIDの存在チェック
     @staticmethod
     def exists_by_user_id(user_id: str, db: Session) -> bool:
