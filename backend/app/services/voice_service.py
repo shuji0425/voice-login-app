@@ -12,7 +12,7 @@ from datetime import timedelta
 class VoiceEmbeddingService:
     # 音声ログイン
     @staticmethod
-    def login_with_voice(file: UploadFile, db: Session):
+    def login_with_voice(file: UploadFile, db: Session) -> str:
         tmp_path = ""
         try:
             # 一時ファイルを作成
@@ -22,7 +22,8 @@ class VoiceEmbeddingService:
 
             # 全音声情報を取得
             db_embeddings = VoiceEmbeddingRepository.get_all_embeddings(db)
-
+            if not db_embeddings:
+                raise ValueError("登録された音声がありません")
             # 最も近いユーザーを探す
             matched_user_id = None
             best_similarity = -1
@@ -34,9 +35,9 @@ class VoiceEmbeddingService:
                     best_similarity = similarity
                     matched_user_id = item.user_id # ユーザーDBのid
 
-            # 閾値でログイン判定（類似度0.75）
-            if best_similarity >= 0.75:
-                user = UserRepository.get_by_id(matched_user_id)
+            # 閾値でログイン判定（類似度0.71）
+            if best_similarity >= 0.71:
+                user = UserRepository.get_by_id(matched_user_id, db)
                 if not user:
                     raise UserNotFoundError()
                 token = create_access_token(
@@ -47,7 +48,8 @@ class VoiceEmbeddingService:
                 return token
             else:
                 raise ValueError("声の一致が見つかりませんでした")
-
+        except Exception as e:
+            raise e
         finally:
             # 一時ファイルを削除
             VoiceUtils.delete_temp_file_from_path(tmp_path)

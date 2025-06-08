@@ -50,6 +50,7 @@ export default function LoginPage() {
   // 音声ログイン
   const { isRecording, startRecording, stopRecording } = useVoiceRecorder(
     async (blob) => {
+      setError("");
       try {
         const data = await sendVoiceBlob(
           "http://localhost:8000/api/voice-login",
@@ -92,7 +93,6 @@ export default function LoginPage() {
 
       {/* 音声登録 */}
       <div className="mt-4">
-        <p>{error}</p>
         {isRecording ? (
           <button
             className="bg-red-600 text-white px-4 py-2 rounded cursor-pointer"
