@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { sendVoiceBlob } from "../lib/api/voice/send";
+import { useVoiceRecorder } from "../hooks/voices/useVoiceRecorder";
 
 /**
  * ログインページ
@@ -10,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  // ログイン
   const handleLogin = async () => {
     setError("");
 
@@ -44,6 +47,23 @@ export default function LoginPage() {
     }
   };
 
+  // 音声ログイン
+  const { isRecording, startRecording, stopRecording } = useVoiceRecorder(
+    async (blob) => {
+      try {
+        const data = await sendVoiceBlob(
+          "http://localhost:8000/api/voice-login",
+          blob
+        );
+        localStorage.setItem("accessToken", data.access_token);
+
+        navigate("/home");
+      } catch {
+        setError("音声データの送信に失敗しました。");
+      }
+    }
+  );
+
   return (
     <main className="p-4">
       <h1 className="text-2xl font-bold mb-4">ログイン</h1>
@@ -69,6 +89,27 @@ export default function LoginPage() {
       >
         ログインする
       </button>
+
+      {/* 音声登録 */}
+      <div className="mt-4">
+        <p>{error}</p>
+        {isRecording ? (
+          <button
+            className="bg-red-600 text-white px-4 py-2 rounded cursor-pointer"
+            onClick={stopRecording}
+          >
+            録音停止
+          </button>
+        ) : (
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
+            onClick={startRecording}
+          >
+            録音開始
+          </button>
+        )}
+      </div>
+
       <p className="mt-4">
         アカウントがない方は
         <button
